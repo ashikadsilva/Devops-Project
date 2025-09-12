@@ -55,7 +55,7 @@ resource "aws_instance" "server" {
                 to_port = 0
             }
         ]
-        ingres = [
+        ingress = [
             {
                 cidr_blocks = ["0.0.0.0/0", ]
                 description = ""
