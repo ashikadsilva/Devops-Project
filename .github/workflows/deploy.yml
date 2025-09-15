@@ -72,8 +72,21 @@ jobs:
           key: ${{ env.PRIVATE_SSH_KEY }}
           envs: REGISTRY,REPOSITORY,IMAGE_TAG,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_DEFAULT_REGION,AWS_REGION
           script: |
-            sudo apt update -y
-            sudo apt install -y awscli docker.io
+            # Update base packages
+            sudo apt-get update -y
+            sudo apt-get install -y unzip curl
+
+            # Install AWS CLI v2
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -o awscliv2.zip
+            sudo ./aws/install
+
+            # Install Docker (from Ubuntu repo, simple way)
+            sudo apt-get install -y docker.io
+            sudo systemctl enable docker
+            sudo systemctl start docker
+
+            # ECR login + container deploy
             aws ecr get-login-password --region ap-south-1 | sudo docker login --username AWS --password-stdin $REGISTRY
             sudo docker stop myappcontainer || true
             sudo docker rm myappcontainer || true
