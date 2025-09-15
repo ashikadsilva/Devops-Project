@@ -16,7 +16,7 @@ jobs:
   deploy-infra:
     runs-on: ubuntu-latest
     outputs: 
-      SERVER_PUBLIC_IP: ${{ steps.set-ip.outputs.instance_public_ip}}
+      server_ip: ${{ steps.get-ip.outputs.ip }}
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -44,10 +44,14 @@ jobs:
         id: apply
         run: terraform apply PLAN
         working-directory: ./terraform
-      - name: Set output
-        id: set-ip
+      - name: Get instance IP
+        id: get-ip
         run: |-
-          echo "$GITHUB_OUTPUT name=instance_public_ip::$(terraform output instance_public_ip)"
+          IP=$(terraform output -raw instance_public_ip)
+          echo "Terraform output IP: $IP"
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "IP set in output: $IP"
+        working-directory: ./terraform
 
   deploy-app:
     runs-on: ubuntu-latest
@@ -55,11 +59,16 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v3
-      - name: Set IP env variable
-        run: echo SERVER_PUBLIC_IP=${{ needs.deploy-infra.outputs.SERVER_PUBLIC_IP}} >> $GITHUB_ENV
+      - name: Debug received IP
+        run: |-
+          echo "Received IP from previous job: ${{ needs.deploy-infra.outputs.server_ip }}"
+          if [ -z "${{ needs.deploy-infra.outputs.server_ip }}" ]; then
+            echo "ERROR: No IP received!"
+            exit 1
+          fi
       - name: Login to AWS ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: 'true'
       - name: Build, push docker image
@@ -78,18 +87,18 @@ jobs:
           REPOSITORY: example-node-app
           IMAGE_TAG: ${{ github.sha }}
           AWS_DEFAULT_REGION: ap-south-1
-
+          SERVER_IP: ${{ needs.deploy-infra.outputs.server_ip }}
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ env.SERVER_PUBLIC_IP}}
+          host: ${{ needs.deploy-infra.outputs.server_ip }}
           username: ubuntu
-          key: ${{ env.PRIVATE_SSH_KEY}}
-          envs: PRIVATE_SSH_KEY, REGISTRY, REPOSITORY, IMAGE_TAG, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_REGION
+          key: ${{ secrets.AWS_SSH_KEY_PRIVATE }}
+          envs: REGISTRY, REPOSITORY, IMAGE_TAG, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_REGION
           script: |-
             sudo apt update
             sudo apt install docker.io -y
             sudo apt install awscli -y
-            sudo $(aws ecr get-login --no-include-email --region ap-south-1);
+            aws ecr get-login-password --region ap-south-1 | sudo docker login --username AWS --password-stdin $REGISTRY
             sudo docker stop myappcontainer || true
             sudo docker rm myappcontainer || true
             sudo docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
