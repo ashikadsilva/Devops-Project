@@ -4,12 +4,6 @@ on:
     branches:
       - main
 
-inputs:
-  aws_region:
-    description: 'AWS region to deploy resources'
-    required: false
-    default: 'ap-south-1'
-
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -17,7 +11,7 @@ env:
   PRIVATE_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PRIVATE }}
   PUBLIC_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PUBLIC }}
   # AWS region for all resources; change here to update region across workflow
-  AWS_REGION: ${{ inputs.aws_region || 'ap-south-1' }}
+  AWS_REGION: 'ap-south-1'
 
 jobs:
   deploy-infra:
@@ -94,7 +88,6 @@ jobs:
           envs: PRIVATE_SSH_KEY, REGISTRY, REPOSITORY, IMAGE_TAG, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, AWS_REGION
           script: |-
             sudo apt update
-            sudo apt install docker.io -y
             sudo apt install awscli -y
             aws ecr get-login-password --region ap-south-1 | sudo docker login --username AWS --password-stdin $REGISTRY
             sudo docker stop myappcontainer || true
