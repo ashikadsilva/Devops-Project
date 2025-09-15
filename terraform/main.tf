@@ -1,4 +1,4 @@
-# Defines the AWS provider requirement. Configures Terraform remote state to s3
+# Minimal Terraform config for testing
 terraform {
   required_providers {
     aws = {
@@ -10,49 +10,8 @@ terraform {
   }
 }
 
-# Use AWS in the region specified by the region variable
 provider "aws" {
   region = var.region
-}
-
-# Create IAM role for EC2
-resource "aws_iam_role" "ec2_role" {
-  name = "DemoRoleForEC2"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-# Attach basic policy to the role
-resource "aws_iam_role_policy" "ec2_policy" {
-  name = "ec2-basic-policy"
-  role = aws_iam_role.ec2_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
 }
 
 resource "aws_instance" "server" {
@@ -60,61 +19,36 @@ resource "aws_instance" "server" {
   instance_type          = "t2.micro"
   key_name              = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.maingroup.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2-profile.name
+  # Temporarily removed IAM instance profile
   
   tags = {
     "Name" = "DeployVM"
   }
-  
-  depends_on = [aws_iam_instance_profile.ec2-profile]
-}
-
-resource "aws_iam_instance_profile" "ec2-profile" {
-  name = "ec2-profile"
-  role = aws_iam_role.ec2_role.name
 }
 
 resource "aws_security_group" "maingroup" {
-  name = "main-security-group"
+  name = "main-security-group-test"
   
-  egress = [
-    {
-      cidr_blocks      = ["0.0.0.0/0"]
-      description      = "All outbound traffic"
-      from_port        = 0
-      ipv6_cidr_blocks = []
-      prefix_list_ids  = []
-      protocol         = "-1"
-      security_groups  = []
-      self             = false
-      to_port          = 0
-    }
-  ]
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   
-  ingress = [
-    {
-      cidr_blocks      = ["0.0.0.0/0"]
-      description      = "SSH"
-      from_port        = 22
-      ipv6_cidr_blocks = []
-      prefix_list_ids  = []
-      protocol         = "tcp"
-      security_groups  = []
-      self             = false
-      to_port          = 22
-    },
-    {
-      cidr_blocks      = ["0.0.0.0/0"]
-      description      = "HTTP"
-      from_port        = 80
-      ipv6_cidr_blocks = []
-      prefix_list_ids  = []
-      protocol         = "tcp"
-      security_groups  = []
-      self             = false
-      to_port          = 80
-    }
-  ]
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_key_pair" "deployer" {
