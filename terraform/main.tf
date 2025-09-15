@@ -1,12 +1,12 @@
 # Defines the AWS provider requirement. Configures Terraform remote state to s3
  terraform {
-    required_providers{
+    required_providers {
         aws = {
             source = "hashicorp/aws"
 
         }
     }
-    backend "s3"{
+    backend "s3" {
         key = "aws/ec2-deploy/terraform.tfstate"     
     }
 }

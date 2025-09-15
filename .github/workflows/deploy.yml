@@ -1,16 +1,23 @@
 name: CI/CD with Terraform
-'on':
+on:
   push:
     branches:
       - main
 
+inputs:
+  aws_region:
+    description: 'AWS region to deploy resources'
+    required: false
+    default: 'ap-south-1'
+
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  TF_STATE_BUCKET_NAME: ${{ secrets.AWS_TF_STATE_BUCKET_NAME}}
-  PRIVATE_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PRIVATE}}
-  PUBLIC_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PUBLIC}}
-  AWS_REGION: ap-south-1
+  TF_STATE_BUCKET_NAME: ${{ secrets.AWS_TF_STATE_BUCKET_NAME }}
+  PRIVATE_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PRIVATE }}
+  PUBLIC_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PUBLIC }}
+  # AWS region for all resources; change here to update region across workflow
+  AWS_REGION: ${{ inputs.aws_region || 'ap-south-1' }}
 
 jobs:
   deploy-infra:
@@ -19,7 +26,7 @@ jobs:
       SERVER_PUBLIC_IP: ${{ steps.set-ip.outputs.instance_public_ip}}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
         with:
@@ -74,7 +81,7 @@ jobs:
         working-directory: ./nodeapp
       - name: Deploy docker image to EC2
         env: 
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          host: ${{ needs.deploy-infra.outputs.SERVER_PUBLIC_IP }}
           REPOSITORY: example-node-app
           IMAGE_TAG: ${{ github.sha }}
           AWS_DEFAULT_REGION: ap-south-1
@@ -89,7 +96,7 @@ jobs:
             sudo apt update
             sudo apt install docker.io -y
             sudo apt install awscli -y
-            sudo $(aws ecr get-login --no-include-email --region ap-south-1);
+            aws ecr get-login-password --region ap-south-1 | sudo docker login --username AWS --password-stdin $REGISTRY
             sudo docker stop myappcontainer || true
             sudo docker rm myappcontainer || true
             sudo docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
