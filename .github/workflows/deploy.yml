@@ -109,7 +109,7 @@ jobs:
       - name: Debug show deploy-infra output (sanity check)
         run: |
           echo "deploy-infra returned SERVER_PUBLIC_IP=${{ needs.deploy-infra.outputs.SERVER_PUBLIC_IP }}"
-
+          
       - name: Deploy docker image to EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -119,10 +119,34 @@ jobs:
           port: 22
           envs: REGISTRY,REPOSITORY,IMAGE_TAG,AWS_REGION
           script: |
+            # Update packages
             sudo apt update -y
-            sudo apt install -y docker.io awscli
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | sudo docker login --username AWS --password-stdin $REGISTRY
+            sudo apt upgrade -y
+
+            # Install Docker if not already installed
+            if ! command -v docker &> /dev/null
+            then
+                sudo apt install -y docker.io unzip curl
+                sudo systemctl enable --now docker
+            fi
+
+            # Install AWS CLI v2 if not already installed
+            if ! command -v aws &> /dev/null
+            then
+                curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                unzip awscliv2.zip
+                sudo ./aws/install
+                rm -rf awscliv2.zip aws/
+            fi
+            aws --version
+
+            # Login to ECR
+            aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $REGISTRY
+
+            # Stop & remove existing container if running
             sudo docker stop myappcontainer || true
             sudo docker rm myappcontainer || true
+
+            # Pull new image and run container
             sudo docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
             sudo docker run -d --name myappcontainer -p 80:3000 $REGISTRY/$REPOSITORY:$IMAGE_TAG
