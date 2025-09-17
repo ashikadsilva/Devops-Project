@@ -21,7 +21,6 @@ resource "aws_instance" "server" {
   iam_instance_profile   = aws_iam_instance_profile.ec2-profile.name
   subnet_id     = var.subnet_id  
   associate_public_ip_address = true
-  iam_instance_profile = aws_iam_instance_profile.ec2-profile.name
 
   connection {
     type        = "ssh"
