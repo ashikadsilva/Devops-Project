@@ -9,6 +9,7 @@ env:
   TF_STATE_BUCKET_NAME: ${{ secrets.AWS_TF_STATE_BUCKET_NAME }}
   PRIVATE_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PRIVATE }}
   PUBLIC_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PUBLIC }}
+  SUBNET_ID: ${{ secrets.AWS_PUBLIC_SUBNET_ID }}
 
 jobs:
   deploy-infra:
@@ -20,6 +21,7 @@ jobs:
       TF_STATE_BUCKET_NAME: ${{ secrets.AWS_TF_STATE_BUCKET_NAME }}
       PRIVATE_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PRIVATE }}
       PUBLIC_SSH_KEY: ${{ secrets.AWS_SSH_KEY_PUBLIC }}
+      SUBNET_ID: ${{ secrets.SUBNET_ID }}
     outputs:
       SERVER_PUBLIC_IP: ${{ steps.set-ip.outputs.instance_public_ip }}
     steps:
@@ -48,6 +50,7 @@ jobs:
             -var="public_key=$PUBLIC_SSH_KEY" \
             -var="private_key=$PRIVATE_SSH_KEY" \
             -var="key_name=deployer-key" \
+            -var="subnet_id=$SUBNET_ID" \
             -out=PLAN
         working-directory: ./terraform
 
