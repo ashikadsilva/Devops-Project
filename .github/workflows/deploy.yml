@@ -99,6 +99,11 @@ jobs:
 
       - name: Deploy Docker image via SSH
         uses: appleboy/ssh-action@v0.1.8
+        env:
+          REGISTRY: 616601340748.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          REPOSITORY: example-node-app
+          IMAGE_TAG: ${{ github.sha }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         with:
           host: ${{ needs.deploy-infra.outputs.SERVER_PUBLIC_IP }}
           username: ubuntu
@@ -106,7 +111,7 @@ jobs:
           port: 22
           envs: REGISTRY,REPOSITORY,IMAGE_TAG,AWS_REGION
           script: |
-            # Install Docker & AWS CLI only if missing
+            # Install Docker & AWS CLI if missing
             if ! command -v docker &> /dev/null; then
               sudo apt update -y
               sudo apt install -y docker.io unzip curl
@@ -120,13 +125,13 @@ jobs:
               rm -rf awscliv2.zip aws/
             fi
 
-            # Login to ECR
-            aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $REGISTRY
+            # Login to ECR (no sudo)
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY
 
             # Stop & remove old container
-            sudo docker stop myappcontainer || true
-            sudo docker rm myappcontainer || true
+            docker stop myappcontainer || true
+            docker rm myappcontainer || true
 
             # Run new container
-            sudo docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
-            sudo docker run -d --name myappcontainer -p 80:3000 $REGISTRY/$REPOSITORY:$IMAGE_TAG
+            docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
+            docker run -d --name myappcontainer -p 80:3000 $REGISTRY/$REPOSITORY:$IMAGE_TAG
