@@ -125,13 +125,14 @@ jobs:
               rm -rf awscliv2.zip aws/
             fi
 
-            # Login to ECR (no sudo)
-            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $REGISTRY
+            # Login to ECR
+              aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $REGISTRY
 
-            # Stop & remove old container
-            docker stop myappcontainer || true
-            docker rm myappcontainer || true
+              # Stop & remove old container
+              sudo docker stop myappcontainer || true
+              sudo docker rm myappcontainer || true
 
-            # Run new container
-            docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
-            docker run -d --name myappcontainer -p 80:3000 $REGISTRY/$REPOSITORY:$IMAGE_TAG
+              # Pull & run new container
+              sudo docker pull $REGISTRY/$REPOSITORY:$IMAGE_TAG
+              sudo docker run -d --name myappcontainer -p 80:3000 $REGISTRY/$REPOSITORY:$IMAGE_TAG
+
